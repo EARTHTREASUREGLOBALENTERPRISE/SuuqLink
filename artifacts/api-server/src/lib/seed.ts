@@ -9,6 +9,13 @@ import {
   conversationsTable,
   messagesTable,
   sessionTable,
+  listingsTable,
+  requestsTable,
+  offersTable,
+  walletsTable,
+  walletTransactionsTable,
+  referralsTable,
+  subscriptionsTable,
 } from "@workspace/db";
 import type {
   OrderItemRow,
@@ -691,17 +698,7 @@ export async function ensureSeedData(): Promise<void> {
 
   await db.insert(productsTable).values(productRows);
 
-  // Update vendor product counts
-  for (const vendor of insertedVendors) {
-    const count = productRows.filter((p) => p.vendorId === vendor.id).length;
-    if (count > 0) {
-      await db
-        .update(vendorsTable)
-        .set({})
-        .where(sql`${vendorsTable.id} = ${vendor.id}`);
-    }
-    void count;
-  }
+  // (vendor product counts are computed on read)
 
   // Sample order
   const sampleProducts = await db.select().from(productsTable).limit(3);
@@ -896,6 +893,516 @@ export async function ensureSeedData(): Promise<void> {
     .insert(sessionTable)
     .values({ id: "singleton", userId: buyer.id })
     .onConflictDoUpdate({ target: sessionTable.id, set: { userId: buyer.id } });
+
+  // ===== Local marketplace listings =====
+  const listingSeeds = [
+    {
+      kind: "vehicle",
+      title: "Toyota Hilux 2018 — Diesel, Single Cab",
+      description:
+        "Clean Hilux double cab, single owner, full service history. New tyres, registered in Hargeisa. Inspection welcome.",
+      price: "21500",
+      condition: "used",
+      category: "vehicles",
+      city: "Hargeisa",
+      area: "26 June",
+      sellerName: "Mahad Ali",
+      sellerPhone: "+252 63 412 8800",
+      contactMethods: ["call", "whatsapp", "chat"],
+      featured: true,
+      promoted: true,
+      attributes: { year: 2018, mileage: "120,000 km", fuel: "Diesel", transmission: "Manual" },
+      imageSeed: "hilux-2018",
+    },
+    {
+      kind: "vehicle",
+      title: "Hyundai Sonata 2017 — Low Mileage",
+      description:
+        "Sonata 2.4L, automatic, leather seats, sunroof. Recently serviced. Trade-in possible.",
+      price: "14200",
+      condition: "used",
+      category: "vehicles",
+      city: "Mogadishu",
+      area: "Wadajir",
+      sellerName: "Yusuf Ibrahim",
+      sellerPhone: "+252 61 555 2211",
+      contactMethods: ["call", "whatsapp"],
+      featured: true,
+      attributes: { year: 2017, mileage: "78,000 km", fuel: "Petrol", transmission: "Auto" },
+      imageSeed: "sonata-2017",
+    },
+    {
+      kind: "property",
+      title: "3-bedroom villa for sale — Jigjiga Yar",
+      description:
+        "Beautiful 3-bed villa with private garden, fenced compound, water tank, and solar inverter. Title deed clean.",
+      price: "115000",
+      condition: "new",
+      category: "property-sale",
+      city: "Hargeisa",
+      area: "Jigjiga Yar",
+      sellerName: "Hodan Estates",
+      sellerPhone: "+252 63 991 0011",
+      contactMethods: ["call", "chat"],
+      featured: true,
+      promoted: true,
+      attributes: { bedrooms: 3, bathrooms: 2, plot: "300 sqm", parking: "Yes" },
+      imageSeed: "villa-jigjiga",
+    },
+    {
+      kind: "rental",
+      title: "Furnished apartment, monthly — Taleh",
+      description:
+        "Modern 2-bed apartment, fully furnished, generator backup, Wi-Fi included. Minimum 1-month stay.",
+      price: "650",
+      condition: "new",
+      category: "rentals",
+      city: "Mogadishu",
+      area: "Taleh",
+      sellerName: "Anisa Property",
+      sellerPhone: "+252 61 770 4400",
+      contactMethods: ["call", "whatsapp", "chat"],
+      attributes: { bedrooms: 2, period: "Monthly", utilities: "Included" },
+      imageSeed: "apt-taleh",
+      featured: true,
+    },
+    {
+      kind: "rental",
+      title: "Shop space for rent — Bakara market",
+      description:
+        "Ground-floor commercial shop, 25 sqm, foot traffic on main road. Annual lease.",
+      price: "1800",
+      condition: "new",
+      category: "rentals",
+      city: "Mogadishu",
+      area: "Bakara",
+      sellerName: "Bakara Holdings",
+      sellerPhone: "+252 61 222 7700",
+      contactMethods: ["call"],
+      attributes: { size: "25 sqm", period: "Yearly" },
+      imageSeed: "shop-bakara",
+    },
+    {
+      kind: "used",
+      title: "iPhone 13 Pro 256GB — Excellent condition",
+      description:
+        "Used 8 months, screen and back perfect, battery 96%. Original box and Apple charger included.",
+      price: "640",
+      condition: "used",
+      category: "phones",
+      city: "Hargeisa",
+      area: "Bilan",
+      sellerName: "Khadar Tech",
+      sellerPhone: "+252 63 100 4040",
+      contactMethods: ["whatsapp", "chat"],
+      attributes: { storage: "256GB", color: "Sierra Blue", battery: "96%" },
+      imageSeed: "iphone-13-pro",
+      promoted: true,
+    },
+    {
+      kind: "used",
+      title: "MacBook Air M2 — barely used",
+      description:
+        "Mint MacBook Air M2 16GB / 512GB. AppleCare valid until 2026. Comes with sleeve.",
+      price: "1080",
+      condition: "used",
+      category: "computers",
+      city: "Mogadishu",
+      area: "Hodan",
+      sellerName: "Layla Said",
+      sellerPhone: "+252 61 333 0099",
+      contactMethods: ["call", "whatsapp"],
+      attributes: { ram: "16GB", storage: "512GB", warranty: "Yes" },
+      imageSeed: "macbook-air-m2",
+    },
+    {
+      kind: "job",
+      title: "Hiring: Delivery riders — Mogadishu",
+      description:
+        "Daily-paid delivery riders needed. Must own motorbike. Earn up to $25/day plus tips.",
+      price: "25",
+      condition: "new",
+      category: "jobs",
+      city: "Mogadishu",
+      area: "City-wide",
+      sellerName: "Suuq Express Logistics",
+      sellerPhone: "+252 61 808 0808",
+      contactMethods: ["call", "chat"],
+      attributes: { type: "Full-time", pay: "Per day" },
+      imageSeed: "delivery-job",
+      featured: true,
+    },
+    {
+      kind: "job",
+      title: "Wanted: English/Somali tutor",
+      description:
+        "Family looking for an evening tutor for two children (ages 9 and 12). 3 sessions/week.",
+      price: "300",
+      condition: "new",
+      category: "jobs",
+      city: "Hargeisa",
+      area: "Ahmed Dhagah",
+      sellerName: "Mohamoud Family",
+      sellerPhone: "+252 63 600 5151",
+      contactMethods: ["call", "whatsapp"],
+      attributes: { type: "Part-time", pay: "Per month" },
+      imageSeed: "tutor-job",
+    },
+    {
+      kind: "service",
+      title: "Plumbing & water tank installation",
+      description:
+        "Licensed plumber with 10+ years experience. Same-day service in Hargeisa. Fair pricing.",
+      price: "30",
+      condition: "new",
+      category: "services",
+      city: "Hargeisa",
+      area: "Hargeisa & nearby",
+      sellerName: "Dahir Plumbing",
+      sellerPhone: "+252 63 444 7878",
+      contactMethods: ["call", "whatsapp"],
+      attributes: { rate: "From $30/visit", emergency: "24/7" },
+      imageSeed: "plumber",
+    },
+    {
+      kind: "service",
+      title: "Wedding photo & video coverage",
+      description:
+        "Full-day wedding coverage including drone, edited highlight reel, and 200+ retouched photos.",
+      price: "750",
+      condition: "new",
+      category: "services",
+      city: "Mogadishu",
+      area: "All districts",
+      sellerName: "Sahan Studio",
+      sellerPhone: "+252 61 909 0909",
+      contactMethods: ["whatsapp", "chat"],
+      attributes: { delivery: "10 days", drone: "Included" },
+      imageSeed: "wedding-photo",
+      promoted: true,
+    },
+    {
+      kind: "used",
+      title: "Bedroom set — bed, dresser, two side tables",
+      description:
+        "Mahogany bedroom set in great condition. Buyer arranges pickup from Hodan.",
+      price: "420",
+      condition: "used",
+      category: "furniture",
+      city: "Mogadishu",
+      area: "Hodan",
+      sellerName: "Faisal H.",
+      sellerPhone: "+252 61 121 3434",
+      contactMethods: ["call", "whatsapp"],
+      attributes: { material: "Mahogany", pieces: 4 },
+      imageSeed: "bedroom-set",
+    },
+    {
+      kind: "vehicle",
+      title: "Bajaj 3-wheeler 2021 — taxi-ready",
+      description:
+        "Almost new Bajaj three-wheeler, perfect for taxi business. Fuel-efficient and reliable.",
+      price: "3200",
+      condition: "used",
+      category: "vehicles",
+      city: "Hargeisa",
+      area: "State House",
+      sellerName: "Abdi Auto",
+      sellerPhone: "+252 63 552 1212",
+      contactMethods: ["call"],
+      attributes: { year: 2021, type: "Three-wheeler", fuel: "Petrol" },
+      imageSeed: "bajaj-2021",
+    },
+    {
+      kind: "property",
+      title: "Plot of land — 600 sqm, Berbera road",
+      description:
+        "Residential plot with road frontage on the new Berbera highway. Ready for construction.",
+      price: "28000",
+      condition: "new",
+      category: "property-sale",
+      city: "Hargeisa",
+      area: "Berbera Road",
+      sellerName: "Geedi Land Co.",
+      sellerPhone: "+252 63 222 9090",
+      contactMethods: ["call", "whatsapp"],
+      attributes: { plot: "600 sqm", deed: "Yes" },
+      imageSeed: "land-plot",
+    },
+  ];
+
+  await db.insert(listingsTable).values(
+    listingSeeds.map((l) => {
+      const main = img(l.imageSeed, 1000);
+      return {
+        kind: l.kind,
+        title: l.title,
+        description: l.description,
+        price: l.price,
+        currency: "USD",
+        negotiable: true,
+        condition: l.condition,
+        category: l.category,
+        city: l.city,
+        area: l.area,
+        imageUrl: main,
+        gallery: [main, img(`${l.imageSeed}-2`, 1000), img(`${l.imageSeed}-3`, 1000)],
+        attributes: l.attributes as unknown as Record<string, string | number | boolean>,
+        sellerId: l.sellerName.includes("Hodan") ? sellerUser.id : buyer.id,
+        sellerName: l.sellerName,
+        sellerPhone: l.sellerPhone,
+        contactMethods: l.contactMethods,
+        status: "active",
+        featured: l.featured ?? false,
+        promoted: l.promoted ?? false,
+        viewCount: Math.floor(Math.random() * 500) + 30,
+        saveCount: Math.floor(Math.random() * 60),
+      };
+    }),
+  );
+
+  // ===== Requests board =====
+  const requestSeeds = [
+    {
+      title: "Looking for: Used Toyota Vitz, automatic, under $7,000",
+      description:
+        "Need a small reliable car for daily commute. Prefer 2014–2017 model with low mileage. Hargeisa.",
+      category: "vehicles",
+      city: "Hargeisa",
+      budget: "7000",
+    },
+    {
+      title: "Need 50 plastic chairs for event rental",
+      description:
+        "Rental needed for a wedding next Saturday. Must include delivery and setup.",
+      category: "services",
+      city: "Mogadishu",
+      budget: "200",
+    },
+    {
+      title: "Want to buy: Office desk + chair (used okay)",
+      description: "Setting up a small home office. Looking for sturdy desk and ergonomic chair.",
+      category: "furniture",
+      city: "Hargeisa",
+      budget: "180",
+    },
+    {
+      title: "Hiring: Arabic tutor for adult learner",
+      description:
+        "Two evening sessions per week, conversational focus. Female tutor preferred.",
+      category: "jobs",
+      city: "Mogadishu",
+      budget: "250",
+    },
+    {
+      title: "Looking for 2-bedroom rental in Boondheere",
+      description:
+        "Family of four, monthly rental, furnished if possible. Long-term tenant.",
+      category: "rentals",
+      city: "Mogadishu",
+      budget: "550",
+    },
+    {
+      title: "Wanted: iPhone 12 or 13 in good condition",
+      description: "Cash in hand, can pick up today in Hargeisa center.",
+      category: "phones",
+      city: "Hargeisa",
+      budget: "500",
+    },
+  ];
+
+  const insertedRequests = await db
+    .insert(requestsTable)
+    .values(
+      requestSeeds.map((r) => ({
+        buyerId: buyer.id,
+        buyerName: buyer.name,
+        title: r.title,
+        description: r.description,
+        category: r.category,
+        city: r.city,
+        budget: r.budget,
+        currency: "USD",
+        status: "open" as const,
+        offerCount: 0,
+      })),
+    )
+    .returning();
+
+  // Sample offers on first two requests
+  if (insertedRequests.length >= 2) {
+    const offerData = [
+      {
+        requestId: insertedRequests[0].id,
+        sellerName: "Mahad Auto",
+        price: "6800",
+        message:
+          "I have a 2016 Vitz automatic with 95,000 km — silver, great condition. Can deliver to Hargeisa.",
+      },
+      {
+        requestId: insertedRequests[0].id,
+        sellerName: "Liiban Motors",
+        price: "6500",
+        message:
+          "Vitz 2015, recently serviced, new tyres. Open to inspection at our garage in Ahmed Dhagah.",
+      },
+      {
+        requestId: insertedRequests[1].id,
+        sellerName: "Sahan Events",
+        price: "180",
+        message:
+          "We can deliver 50 chairs and set up Friday evening, pickup Sunday morning. All-in price.",
+      },
+    ];
+    await db.insert(offersTable).values(
+      offerData.map((o) => ({
+        requestId: o.requestId,
+        sellerId: sellerUser.id,
+        sellerName: o.sellerName,
+        sellerRating: "4.85",
+        price: o.price,
+        currency: "USD",
+        message: o.message,
+        status: "pending" as const,
+      })),
+    );
+    await db
+      .update(requestsTable)
+      .set({ offerCount: 2 })
+      .where(sql`${requestsTable.id} = ${insertedRequests[0].id}`);
+    await db
+      .update(requestsTable)
+      .set({ offerCount: 1 })
+      .where(sql`${requestsTable.id} = ${insertedRequests[1].id}`);
+  }
+
+  // ===== Wallets & transactions =====
+  await db.insert(walletsTable).values([
+    {
+      userId: buyer.id,
+      balance: "12.50",
+      pending: "0",
+      lifetimeEarned: "47.00",
+      currency: "USD",
+      payoutMethod: "evc-plus",
+      payoutAccount: "+252 61 234 5678",
+    },
+    {
+      userId: sellerUser.id,
+      balance: "1340.75",
+      pending: "215.00",
+      lifetimeEarned: "8920.00",
+      currency: "USD",
+      payoutMethod: "zaad",
+      payoutAccount: "+252 63 555 1212",
+    },
+  ]);
+
+  const txSeeds = [
+    {
+      userId: sellerUser.id,
+      amount: "240.00",
+      type: "sale",
+      description: "Sale of Saffron Embroidered Dirac",
+      refId: "SQ-100012",
+    },
+    {
+      userId: sellerUser.id,
+      amount: "-25.00",
+      type: "commission",
+      description: "Platform commission (10%)",
+      refId: "SQ-100012",
+    },
+    {
+      userId: sellerUser.id,
+      amount: "180.00",
+      type: "sale",
+      description: "Sale of Indigo Guntiino Wrap",
+      refId: "SQ-100015",
+    },
+    {
+      userId: sellerUser.id,
+      amount: "-500.00",
+      type: "payout",
+      description: "Payout to ZAAD +252 63 *** 1212",
+      refId: "PYT-9100",
+      status: "completed",
+    },
+    {
+      userId: sellerUser.id,
+      amount: "215.00",
+      type: "sale",
+      description: "Order pending settlement",
+      refId: "SQ-100023",
+      status: "pending",
+    },
+    {
+      userId: buyer.id,
+      amount: "5.00",
+      type: "referral",
+      description: "Referral reward — Yusuf joined SuuqLink",
+      refId: "REF-441",
+    },
+    {
+      userId: buyer.id,
+      amount: "7.50",
+      type: "cashback",
+      description: "Cashback on order SQ-100018",
+      refId: "SQ-100018",
+    },
+  ];
+  await db.insert(walletTransactionsTable).values(
+    txSeeds.map((t) => ({
+      userId: t.userId,
+      amount: t.amount,
+      type: t.type,
+      description: t.description,
+      refId: t.refId,
+      status: t.status ?? "completed",
+    })),
+  );
+
+  // ===== Referrals =====
+  await db.insert(referralsTable).values([
+    {
+      userId: buyer.id,
+      code: "AMINA5",
+      referredName: "Yusuf O.",
+      reward: "5.00",
+      status: "completed",
+    },
+    {
+      userId: buyer.id,
+      code: "AMINA5",
+      referredName: "Hawa B.",
+      reward: "5.00",
+      status: "completed",
+    },
+    {
+      userId: buyer.id,
+      code: "AMINA5",
+      referredName: "Daniel M.",
+      reward: "0.00",
+      status: "pending",
+    },
+    {
+      userId: sellerUser.id,
+      code: "HODAN10",
+      referredName: "Karachi Beauty Bar",
+      reward: "10.00",
+      status: "completed",
+    },
+  ]);
+
+  // ===== Subscriptions =====
+  await db.insert(subscriptionsTable).values({
+    userId: sellerUser.id,
+    tier: "growth",
+    status: "active",
+    priceMonthly: "19.00",
+    currency: "USD",
+    renewsAt: new Date(Date.now() + 86400000 * 22),
+  });
 
   void adminUser;
   void PLACEHOLDER;
