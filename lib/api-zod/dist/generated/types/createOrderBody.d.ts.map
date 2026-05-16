@@ -1,0 +1,1 @@
+{"version":3,"file":"createOrderBody.d.ts","sourceRoot":"","sources":["../../../src/generated/types/createOrderBody.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AACH,OAAO,KAAK,EAAE,4BAA4B,EAAE,MAAM,gCAAgC,CAAC;AACnF,OAAO,KAAK,EAAE,eAAe,EAAE,MAAM,mBAAmB,CAAC;AAEzD,MAAM,WAAW,eAAe;IAC9B,eAAe,EAAE,eAAe,CAAC;IACjC,aAAa,EAAE,4BAA4B,CAAC;CAC7C"}
